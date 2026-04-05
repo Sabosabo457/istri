@@ -23,7 +23,7 @@ export function VoiceSection({ token, onJoinVoice, voiceEnabled, onLeaveVoice }:
         video={false} audio={true} token={token} 
         serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} 
         data-lk-theme="default" 
-        onDisconnected={onLeaveVoice} // 切断時に親の状態を戻す
+        onDisconnected={onLeaveVoice} 
         className="w-full flex-1 flex flex-col items-center justify-center"
       >
         <ControlBar variation="minimal" controls={{ chat: false, settings: false }} className="bg-white/80 backdrop-blur-md p-4 rounded-[2rem] border-4 border-orange-50 shadow-xl" />

@@ -1,7 +1,8 @@
 "use client";
-import { DayLog } from "../../../../(shared)/types";
+import React from "react";
+import { DayLog } from "@/types";
 
-type ModalProps = { viewMonth: Date; setViewMonth: (d: Date) => void; calendarLogs: Record<string, DayLog>; currentUserId: string | null; selectedDay: string | null; setSelectedDay: (s: string | null) => void; dayNoteText: string; setDayNoteText: (s: string) => void; onSaveNote: () => void; onClose: () => void; };
+type ModalProps = { viewMonth: Date; setViewMonth: (d: Date) => void; calendarLogs: Record<string, DayLog>; currentUserId: string; selectedDay: string | null; setSelectedDay: (s: string | null) => void; dayNoteText: string; setDayNoteText: (s: string) => void; onSaveNote: () => void; onClose: () => void; };
 
 export function ActivityLogModal({ viewMonth, setViewMonth, calendarLogs, currentUserId, selectedDay, setSelectedDay, dayNoteText, setDayNoteText, onSaveNote, onClose }: ModalProps) {
   const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
@@ -26,14 +27,13 @@ export function ActivityLogModal({ viewMonth, setViewMonth, calendarLogs, curren
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col md:flex-row gap-8">
-          {/* カレンダーエリア */}
           <div className="flex-1">
             <div className="grid grid-cols-7 gap-2">
               {daysArr.map(day => {
                 const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const hasLog = calendarLogs[dateKey]?.users[currentUserId || ""];
+                const hasLog = calendarLogs[dateKey]?.users[currentUserId];
                 return (
-                  <button key={day} onClick={() => { setSelectedDay(dateKey); setDayNoteText(calendarLogs[dateKey]?.users[currentUserId || ""]?.note || ""); }} className={`aspect-square flex flex-col items-center justify-center rounded-xl text-xs font-black transition-all ${selectedDay === dateKey ? "bg-orange-500 text-white scale-110 shadow-lg" : hasLog ? "bg-orange-100 text-orange-600 border-2 border-orange-200" : "bg-orange-50/50 text-orange-200 hover:bg-orange-100"}`}>
+                  <button key={day} onClick={() => { setSelectedDay(dateKey); setDayNoteText(calendarLogs[dateKey]?.users[currentUserId]?.note || ""); }} className={`aspect-square flex flex-col items-center justify-center rounded-xl text-xs font-black transition-all ${selectedDay === dateKey ? "bg-orange-500 text-white scale-110 shadow-lg" : hasLog ? "bg-orange-100 text-orange-600 border-2 border-orange-200" : "bg-orange-50/50 text-orange-200 hover:bg-orange-100"}`}>
                     {day}
                     {hasLog && <div className="w-1.5 h-1.5 bg-current rounded-full mt-1" />}
                   </button>
@@ -42,7 +42,6 @@ export function ActivityLogModal({ viewMonth, setViewMonth, calendarLogs, curren
             </div>
           </div>
 
-          {/* 右側：詳細・入力エリア */}
           <div className="flex-1 bg-orange-50/50 rounded-[2rem] p-6 flex flex-col gap-4 min-h-[300px] md:min-h-0">
              {selectedDay ? (
                <>
@@ -58,7 +57,6 @@ export function ActivityLogModal({ viewMonth, setViewMonth, calendarLogs, curren
 
                  <div className="flex-1 flex flex-col space-y-1">
                    <p className="text-[10px] font-black text-orange-300 uppercase tracking-widest">ひとことメモ</p>
-                   {/* ★ readOnlyを削除し、onChangeを追加して入力を可能にしました */}
                    <textarea 
                      value={dayNoteText} 
                      onChange={(e) => setDayNoteText(e.target.value)}

@@ -3,25 +3,17 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function OnboardingPage() {
   const [name, setName] = useState("");
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const { user, loading } = useAuth();
 
   useEffect(() => {
     setMounted(true);
-    const unsub = onAuthStateChanged(auth, (u) => {
-      if (u) {
-        setUser(u);
-      } else {
-        router.push("/login");
-      }
-    });
-    return () => unsub();
-  }, [router]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +40,15 @@ export default function OnboardingPage() {
     }
   };
 
-  if (!mounted || !user) return null;
+  if (!mounted || loading) {
+    return (
+      <div className="min-h-screen bg-orange-50 flex items-center justify-center">
+        <div className="w-16 h-16 border-8 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   return (
     <main className="h-screen bg-orange-50 text-orange-950 flex flex-col items-center justify-center p-8 relative overflow-hidden font-pop">

@@ -3,10 +3,13 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { db, auth } from "@/lib/firebase"; 
 import { collection, onSnapshot, query, orderBy, limit, serverTimestamp, doc, setDoc, where, getDocs } from "firebase/firestore";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { InAppBrowserBanner } from "./(shared)/components/InAppBrowserBanner";
+import { signOut } from "firebase/auth";
+import { InAppBrowserBanner } from "@/components/shared/InAppBrowserBanner";
+import { useAuth } from "@/hooks/useAuth";
+import { useAdmin } from "@/hooks/useAdmin";
+import { BrandHeader } from "@/components/shared/BrandHeader";
 
-type Room = { id: string; title: string };
+type Room = { id: string; title: string; ownerId?: string };
 
 export default function Home() {
   const [recentRooms, setRecentRooms] = useState<Room[]>([]);
@@ -19,27 +22,54 @@ export default function Home() {
   const historyScrollRef = useRef<HTMLDivElement>(null);
   const activityScrollRef = useRef<HTMLDivElement>(null);
 
+  const { user, loading: authLoading } = useAuth();
+  const { isAdmin } = useAdmin(false);
+
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (user) => {
-      if (!user) router.push("/login");
-      else {
-        setIsLoading(false);
+    if (!authLoading) {
+      setIsLoading(false);
+      if (user) {
         const history = JSON.parse(localStorage.getItem("istri_history") || "[]");
         setRecentRooms(history);
       }
-    });
-    return () => unsubAuth();
-  }, [router]);
+    }
+  }, [user, authLoading]);
 
   useEffect(() => {
-    const q = query(collection(db, "rooms"), orderBy("createdAt", "desc"), limit(12));
+    if (!authLoading && user && recentRooms.length > 0) {
+      const validateHistory = async () => {
+        const { getDoc, doc } = await import("firebase/firestore");
+        const validHistory: any[] = [];
+        let changed = false;
+
+        for (const room of recentRooms) {
+          const roomDoc = await getDoc(doc(db, "rooms", room.id));
+          if (roomDoc.exists()) {
+            validHistory.push(room);
+          } else {
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          localStorage.setItem("istri_history", JSON.stringify(validHistory));
+          setRecentRooms(validHistory);
+        }
+      };
+      validateHistory();
+    }
+  }, [authLoading, user, recentRooms.length]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "rooms"), orderBy("createdAt", "desc"), limit(20));
     const unsubRooms = onSnapshot(q, (snap) => {
       const data: Room[] = [];
       snap.forEach((d) => data.push({ id: d.id, ...d.data() } as Room));
       setPublicRooms(data);
     });
     return () => unsubRooms();
-  }, []);
+  }, [user]);
 
   const goToRoom = (id: string) => { if (!id) return; router.push(`/room/${id}`); };
 
@@ -58,6 +88,19 @@ export default function Home() {
     } catch (e) { setErrorMsg("失敗..."); }
   };
 
+  const handleDeleteRoom = async (e: React.MouseEvent, roomId: string, title: string) => {
+    e.stopPropagation();
+    if (!window.confirm(`「${title}」を削除してもいい？\n履歴からも消えます。`)) return;
+    try {
+      const { deleteDoc } = await import("firebase/firestore");
+      await deleteDoc(doc(db, "rooms", roomId));
+      const history = JSON.parse(localStorage.getItem("istri_history") || "[]");
+      const newHistory = history.filter((v: any) => v.id !== roomId);
+      localStorage.setItem("istri_history", JSON.stringify(newHistory));
+      setRecentRooms(newHistory);
+    } catch (err) { alert("削除に失敗しました..."); }
+  };
+
   const handleScroll = (ref: any, direction: "left" | "right") => {
     if (!ref || !ref.current) return;
     const { scrollLeft, clientWidth } = ref.current;
@@ -73,19 +116,19 @@ export default function Home() {
     <main className="min-h-screen md:h-screen bg-[#fffcf9] text-orange-950 font-pop md:overflow-hidden flex flex-col p-4 md:px-12 py-1 overflow-y-auto">
       <InAppBrowserBanner isJoined={false} />
       
-      <div className="absolute top-2 right-8 z-50">
+      <div className="absolute top-2 right-8 z-50 flex items-center gap-3">
+        {isAdmin && (
+          <button onClick={() => router.push("/admin/rooms")} className="bg-orange-950/80 backdrop-blur-md border-2 border-orange-500/50 px-4 py-1.5 rounded-xl font-black text-[10px] text-orange-400 hover:bg-orange-500 hover:text-white transition-all uppercase tracking-widest shadow-xl flex items-center gap-2 group">
+            <span className="text-sm group-hover:animate-spin">⚙️</span>
+            管理者ダッシュボード
+          </button>
+        )}
         <button onClick={() => signOut(auth)} className="bg-white/50 border-2 border-orange-50 px-3 py-1 rounded-xl font-black text-[10px] text-orange-200 hover:bg-orange-500 hover:text-white transition-all uppercase tracking-widest shadow-sm">Logout</button>
       </div>
 
       {/* ★ ヒーローエリア: py-2 にて極限まで短縮 */}
       <section className="max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-3 gap-6 py-2 shrink-0 items-center">
-        <div className="text-center md:text-left flex flex-col justify-center">
-          <img src="/pic/istri_logo.png" className="w-[140px] md:w-[200px] mx-auto md:ml-0" alt="istri" />
-          <div className="space-y-0.5">
-             <h1 className="text-xl md:text-2xl font-black text-orange-900 leading-tight">おかえり、Istriへ</h1>
-             <p className="text-orange-300 text-[10px] font-black italic tracking-wider">だいじななかまと、おなじばしょで。</p>
-          </div>
-        </div>
+        <BrandHeader />
 
         <div className="bg-orange-600 text-white p-5 md:p-6 rounded-[2.5rem] shadow-lg relative overflow-hidden flex flex-col items-center">
           <h2 className="text-md md:text-lg font-black mb-2">✨ あたらしく作る</h2>
@@ -119,7 +162,9 @@ export default function Home() {
           </div>
           <div ref={historyScrollRef} className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory px-2 h-full items-center py-2">
             {recentRooms.length > 0 ? recentRooms.map((r) => (
-              <div key={r.id} onClick={() => goToRoom(r.id)} className="shrink-0 w-[180px] bg-white p-5 rounded-[2rem] border-2 border-orange-50 flex flex-col items-center text-center cursor-pointer hover:border-orange-200 transition-all shadow-sm snap-start">
+              <div key={r.id} onClick={() => goToRoom(r.id)} className="shrink-0 w-[180px] bg-white p-5 rounded-[2rem] border-2 border-orange-50 flex flex-col items-center text-center cursor-pointer hover:border-orange-200 transition-all shadow-sm snap-start relative group">
+                 {/* 履歴の削除ボタンはオーナーに関わらず履歴から消すだけなら可能だが一旦は共通化 */}
+                 <button onClick={(e) => { e.stopPropagation(); const h = JSON.parse(localStorage.getItem("istri_history") || "[]"); const n = h.filter((v:any)=>v.id!==r.id); localStorage.setItem("istri_history",JSON.stringify(n)); setRecentRooms(n); }} className="absolute top-3 right-3 w-6 h-6 bg-orange-50 rounded-full flex items-center justify-center text-orange-200 opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white transition-all text-[10px]">×</button>
                  <div className="text-2xl mb-2">🚗</div>
                  <h3 className="text-xs font-black text-orange-950 truncate w-full">{r.title}</h3>
                  <span className="text-[8px] font-black text-orange-100 uppercase mt-1">{r.id}</span>
@@ -139,7 +184,10 @@ export default function Home() {
           </div>
           <div ref={activityScrollRef} className="flex gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-2 h-full items-center py-2">
             {publicRooms.map((r) => (
-              <div key={r.id} onClick={() => goToRoom(r.id)} className="shrink-0 w-[180px] bg-white p-5 md:p-6 rounded-[2.5rem] border-2 border-[#fff5ef] flex flex-col items-center text-center cursor-pointer hover:border-orange-200 hover:scale-105 transition-all shadow-lg active:scale-95 snap-start">
+              <div key={r.id} onClick={() => goToRoom(r.id)} className="shrink-0 w-[180px] bg-white p-5 md:p-6 rounded-[2.5rem] border-2 border-[#fff5ef] flex flex-col items-center text-center cursor-pointer hover:border-orange-200 hover:scale-105 transition-all shadow-lg active:scale-95 snap-start relative group">
+                {r.ownerId === user?.uid && (
+                  <button onClick={(e) => handleDeleteRoom(e, r.id, r.title)} className="absolute top-4 right-4 w-7 h-7 bg-red-50 text-red-300 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white transition-all text-xs shadow-sm">🗑️</button>
+                )}
                 <div className="text-3xl mb-2">🏠</div>
                 <h3 className="text-xs font-black text-orange-950 truncate w-full">{r.title}</h3>
                 <span className="text-[9px] font-black text-orange-100 uppercase mt-1">{r.id}</span>

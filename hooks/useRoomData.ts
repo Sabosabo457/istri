@@ -2,31 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { db, auth, storage } from "@/lib/firebase";
 import { collection, onSnapshot, query, orderBy, limit, serverTimestamp, doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-
-export interface Member {
-  id: string;
-  name: string;
-  color: string;
-  photoURL: string | null;
-  status: string;
-  statusUpdatedAt: any;
-  lastActive: any;
-}
-
-export interface Message {
-  id: string;
-  text: string;
-  imageUrl: string | null;
-  senderId: string;
-  senderName: string;
-  createdAt: any;
-}
-
-export interface RoomData {
-  title: string;
-  password?: string | null;
-  ownerId?: string;
-}
+import { Member, Message, RoomData } from "@/types";
 
 export function useRoomData(roomId: string, searchParams: any, router: any) {
   const [joined, setJoined] = useState(false);
@@ -43,6 +19,7 @@ export function useRoomData(roomId: string, searchParams: any, router: any) {
   const [calendarLogs, setCalendarLogs] = useState<Record<string, any>>({});
   const [joinTime, setJoinTime] = useState(Date.now());
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [ownerId, setOwnerId] = useState<string | null>(null);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const unsubsRef = useRef<(() => void)[]>([]);
@@ -74,6 +51,7 @@ export function useRoomData(roomId: string, searchParams: any, router: any) {
       if (snap.exists()) {
         const roomData = snap.data() as RoomData;
         setRoomTitle(roomData.title);
+        setOwnerId(roomData.ownerId || null);
         
         const memberSnap = await getDoc(doc(db, "rooms", roomId, "members", user.uid));
         
@@ -97,7 +75,6 @@ export function useRoomData(roomId: string, searchParams: any, router: any) {
         router.push("/");
       }
 
-      // 監視の登録
       unsubsRef.current.push(onSnapshot(query(collection(db, "rooms", roomId, "messages"), orderBy("createdAt", "asc"), limit(100)), (sn) => {
         setMessages(sn.docs.map(d => ({ id: d.id, ...d.data() } as Message)));
         setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }), 100);
@@ -132,7 +109,7 @@ export function useRoomData(roomId: string, searchParams: any, router: any) {
         const uploadResult = await uploadBytes(storageRef, content);
         finalImageUrl = await getDownloadURL(uploadResult.ref);
       } else {
-        finalImageUrl = content; // String (legacy or external)
+        finalImageUrl = content;
       }
     }
 
@@ -152,7 +129,7 @@ export function useRoomData(roomId: string, searchParams: any, router: any) {
   };
 
   return {
-    states: { joined, roomTitle, messages, members, myName, myColor, photoURL, status, inputText, token, voiceEnabled, calendarLogs, joinTime, currentUserId },
+    states: { joined, roomTitle, messages, members, myName, myColor, photoURL, status, inputText, token, voiceEnabled, calendarLogs, joinTime, currentUserId, ownerId },
     setters: { setInputText, setMyName, setMyColor, setPhotoURL, setStatus, setVoiceEnabled },
     refs: { scrollRef },
     handlers: { 

@@ -1,12 +1,12 @@
 "use client";
-import { Message } from "../../../../(shared)/types";
+import { Message } from "@/types";
 
-type ChatProps = { width: number; combinedMessages: Message[]; currentUserId: string | null; inputText: string; setInputText: (v: string) => void; onSendMessage: (e?: React.FormEvent, type?: "text" | "image", content?: string) => void; onImagePaste: (e: React.ClipboardEvent) => void; onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void; onPreviewImage: (url: string) => void; scrollRef: any; fileInputRef: any; };
+type ChatProps = { width: number; combinedMessages: Message[]; currentUserId: string | null; inputText: string; setInputText: (v: string) => void; onSendMessage: (e?: React.FormEvent, type?: "text" | "image", content?: string | File | Blob) => void; onImagePaste: (e: React.ClipboardEvent) => void; onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void; onPreviewImage: (url: string) => void; scrollRef: any; fileInputRef: any; };
 
 export function ChatSection({ combinedMessages, currentUserId, inputText, setInputText, onSendMessage, onImagePaste, onFileSelect, onPreviewImage, scrollRef, fileInputRef }: ChatProps) {
   return (
     <aside className="w-full md:w-[420px] h-[50vh] md:h-full flex flex-col bg-white border-t-4 md:border-t-0 md:border-l-4 border-orange-50 shrink-0">
-      <header className="px-6 py-4 border-b-4 border-orange-50 flex items-center gap-3 shrink-0">
+      <header className="px-6 h-[72px] border-b-4 border-orange-50 flex items-center gap-3 shrink-0">
         <span className="text-xl">💬</span>
         <h2 className="text-lg font-black text-orange-950">チャット</h2>
       </header>
@@ -25,9 +25,8 @@ export function ChatSection({ combinedMessages, currentUserId, inputText, setInp
         })}
       </div>
 
-      <form onSubmit={onSendMessage} className="p-3 bg-white border-t-2 border-orange-50 shrink-0">
+      <form onSubmit={(e) => onSendMessage(e)} className="p-3 bg-white border-t-2 border-orange-50 shrink-0">
         <div className="flex items-center gap-1.5 bg-orange-50 p-1.5 rounded-[1.5rem] border-2 border-orange-100 focus-within:border-orange-500 transition-all">
-          {/* onPaste={onImagePaste} を追加 */}
           <input 
             type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onPaste={onImagePaste}
             placeholder="かこう！ (画像ペーストOK)" 
@@ -35,8 +34,6 @@ export function ChatSection({ combinedMessages, currentUserId, inputText, setInp
           />
           <input type="file" ref={fileInputRef} onChange={onFileSelect} accept="image/*" className="hidden" />
           <button type="button" onClick={() => fileInputRef.current?.click()} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-orange-200 text-xl shrink-0">📎</button>
-          
-          {/* ロケットボタンを削除しました。送信は Enter キーで行えます */}
         </div>
       </form>
     </aside>
